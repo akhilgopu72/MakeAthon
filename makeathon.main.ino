@@ -1,0 +1,247 @@
+/*
+ * A0 = Motion Senser
+ * A1 = Light Senser Outside
+ * A2 = Light Sens-er Insde
+ */
+double stagnant = 0; // amount of time with no activity
+double desiredBrightness = 550; // desired brightness (set by user)
+double spinningClockwise;
+double light = 0;
+double rotationCounter;
+
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+  pinMode(4,OUTPUT); //MOTOR
+  pinMode(2, OUTPUT);  // MOTOR 2
+  pinMode (6, OUTPUT); //LED
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  bool motion = false; 
+  double motionValue = analogRead(A0); // Pin for motion
+  Serial.println(motionValue);
+  if (motionValue > 600) {
+    motion = true; //If motion is detected, set motion to true
+  }
+ 
+
+  if(stagnant >= 300000) {
+    Serial.end();
+  }
+  else if(motion) {
+    stagnant = 0;
+    double lightOutside = luxEquation(analogRead(A1)); // Measure of Light outside
+    double lightInside = luxEquation(analogRead(A2)); //Measure of Light inside
+    Serial.print(lightOutside);
+    Serial.print("    ");
+    Serial.println(lightInside);
+    if (desiredBrightness > lightInside + 80) {
+      StartBrighten(lightInside, lightOutside); //Brighten the light inside the house
+    }
+    else if (desiredBrightness < lightInside - 80) {
+      //StartUnbrighten(lightInside, lightOutside); //Lower brightness in the house 
+    }
+      
+    
+  }
+  else {
+    delay(2000);
+    stagnant+=20000;
+  }
+
+}
+/*
+ * Open the Blinds and keep track of the time the motors are spinning
+ * Paramters: outside Brigtness
+ * Returns: Time motor is spinning
+ */
+double BlindAdjustmentClockwise (double outsideBrightness)
+{
+  double sensorValue  = analogRead (A2);
+  double insideLight = luxEquation (sensorValue);
+  double turns = 0;
+  double turnAmount = 1; //increment to incrase rotation every iteration
+  double currentTime = millis(); //Keep Track of time spinning clockwise
+  while (insideLight  < desiredBrightness) {
+    Serial.print(outsideBrightness);
+    Serial.print("    ");
+    Serial.println(insideLight);
+    double sensorValue  = analogRead (A2);
+    insideLight = luxEquation(sensorValue);
+    // set the speed of pin 4 and 2:
+
+       analogWrite (2,turns);
+
+       // change the turnings for next time through the loop:
+
+       turns = turns + turnAmount;
+
+       // stops the speed of the motor from growing, need to determine which speed is most optimal still
+
+       if (turns == 200) { 
+           delay(6000);
+           turnAmount = -1;
+       }
+       if (turns == -1)
+       {
+        return spinMotor2();
+       }
+       
+  }
+  double postLoopTime = millis(); //Keep track of time that actually spun
+  return postLoopTime - currentTime; //Returns a positive number to represent time spent spinning clockwise
+
+}
+double spinMotor2()
+{
+  double sensorValue  = analogRead (A2);
+  double insideLight = luxEquation (sensorValue);
+  double turns = 0;
+  double turnAmount = 1; //increment to incrase rotation every iteration
+  while (0<1)
+  {
+    analogWrite(4,turns);
+    turns = turns + turnAmount;
+  
+  if (turns == 200) { 
+           delay(6000);
+           turnAmount = -1;
+       }
+       if (turns == -1)
+       {
+        return 1;
+       }
+  }
+    
+
+ 
+}
+/*
+double BlindAdjustmentCounterclockwise (double outsideBrightness)
+{
+  if (outsideBrightness < 30){
+    return 0; //if not enough light outside to substantially brighten up room, no podouble in opening blinds
+  }
+
+  double sensorValue  = analogRead (A2);
+  double insideLight = luxEquation(sensorValue);
+  double turns = 0;
+  double turnAmount = -1; //increment to increase rotation every iteration
+  double currentTime = millis(); //Keep Track of time spinning clockwise
+  while (insideLight  < desiredBrightness) {
+    double sensorValue  = analogRead (A2);
+    insideLight = luxEquation(sensorValue);
+    // set the speed of pin 4 and 2:
+
+       analogWrite(4, turns);
+       analogWrite (2,turns);
+
+       // change the turnings for next time through the loop:
+
+       turns = turns + turnAmount;
+
+       // stops the speed of the motor from growing, need to determine which speed is most optimal still
+
+       if (turns == -60) { 
+           delay(3000);'
+           return 1;
+       }
+       
+  }
+  double postLoopTime = millis(); //Keep track of time that actually spun
+  return postLoopTime - currentTime; //Returns a positive number to represent time spent spinning clockwise
+
+}
+*/
+/*
+ * Brighten the House
+ * Parameters: Brightness Outside
+ */
+
+double StartBrighten(double inside, double outside) {
+
+  spinningClockwise = BlindAdjustmentClockwise(outside); //Adjust the blinds and keep track of how much time they spun clockwise
+  if (desiredBrightness > inside + 80)
+  {
+    IncreaseLight(); //Adjust Light if desired threshold has not been reached
+  }
+  return spinningClockwise;
+}
+/*
+double StartUnbrighten(double inside, double outside) {
+
+  double spinningCounterclockwise;
+  DecreaseLight();  //Adjust the blinds and keep track of how much time they spun clockwise
+  if (desiredBrightness < inside + 80)
+  {
+    spinningCounterclockwise = BlindAdjustmentCounterclockwise(outside); //Adjust Light if desired threshold has not been reached
+  }
+  return spinningCounterclockwise;
+}
+*/
+/*
+ * This method will adjust the light in the house to reach the desired threshold if the light outside was not enough 
+ * No Parameters
+ */
+double IncreaseLight() {
+  double sensorValue  = analogRead (A2);
+  double insideLight = sensorValue;
+  double brightnessIncrease = 1; //Increase brightness by 1 every iteration
+  while (insideLight  < desiredBrightness) {
+    sensorValue  = analogRead (A2);
+    insideLight = sensorValue;
+    // set the the brightness:
+
+       analogWrite(6, light); //change brightness of light
+
+       // change the turnings for next time through the loop:
+
+       light= light + brightnessIncrease; //increase brightness if still needed
+       delay(35);
+
+       if (light == 250) {
+           brightnessIncrease = -1;
+       }
+
+       if (light == -1)
+       {
+        return 1;
+       }
+  
+  }
+}
+/*
+double DecreaseLight() {
+  double sensorValue  = analogRead (A2);
+  double insideLight = sensorValue;
+  double brightnessDecrease = -1; //Decrease brightness by 1 every iteration
+  while (insideLight  > desiredBrightness) {
+    sensorValue  = analogRead (A2);
+    insideLight = sensorValue;
+    // set the the brightness:
+
+       analogWrite(6, light); //change brightness of light
+
+
+       // change the turnings for next time through the loop:
+
+       light= light + brightnessDecrease; //increase brightness if still needed
+       delay(20);
+
+       if (light == 0) {
+           return 1;
+       }
+  }
+}
+*/
+
+double luxEquation(double light)
+{
+  return light*light*light* -.000002 + .004 * light * light + .2385 * light + 17.738;
+}
+
+  
+  
